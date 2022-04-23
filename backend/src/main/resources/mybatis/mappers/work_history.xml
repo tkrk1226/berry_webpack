@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="workHistory">
+	
+
+	<select id="getTaskByFactoryAndMaterialNum" parameterType="map" resultType="map">
+
+	<![CDATA[
+			select   
+ 		  to_char(tmp_tbl.due_date, 'YYYY-MM-DD HH24:MI:SS') as due_date
+ 		, tmp_tbl."sequence"
+ 		, material_mgm.material_number
+ 		, tmp_tbl.factory
+ 		, material_mgm.current_thickness
+        , material_mgm.current_width
+        , material_mgm.current_length
+        , material_mgm.current_weight   
+        , material_mgm.work_method
+        , (case when (material_mgm.current_width between tmp_tbl.target_width and tmp_tbl.target_width + tmp_tbl.width_max)
+        	and (material_mgm.current_thickness between tmp_tbl.target_thickness and tmp_tbl.target_thickness + tmp_tbl.thickness_max)
+        	and (material_mgm.current_length between tmp_tbl.target_length and tmp_tbl.target_length + tmp_tbl.length_max) then 'pass' else 'fail' end) as flag 
+        from material_mgm as material_mgm
+inner join  (
+ select   factory
+        , material_number
+        , due_date
+        , target_width
+        , target_thickness
+        , target_length
+        , "sequence"
+ 		, (select width_max from quality_std as t1 where t1.factory = t2.factory ) as width_max
+ 		, (select thickness_max from quality_std as t1 where t1.factory = t2.factory ) as thickness_max
+ 		, (select length_max from quality_std as t1 where t1.factory = t2.factory ) as length_max 		
+ 		
+ from instruction_history t2
+ where material_number Ilike '%${materialNum}%'
+) as tmp_tbl
+on material_mgm.material_number = tmp_tbl.material_number]]>
+
+	<if test="factory != 'all'">
+		where tmp_tbl.factory = #{factory}
+	</if>		
+	</select>
+	
+	<insert id = "insert" parameterType="java.util.List">
+		<foreach collection="list" item="item">
+			insert
+				into work_history
+					values (#{item.materialNumber}, TO_TIMESTAMP(#{item.productionDate}, 'YYYY-MM-DD HH24:MI:SS'), #{item.factory}, #{item.outputWeight}, #{item.workMethod})
+		</foreach>
+	</insert>
+	
+	
+	
+	<!-- 	깃 충돌을 방지하기 위해 지정한 영역입니다. 이 경계선을 절대로 절대로 넘지 마세요 -->
+<!-- 	##############################################   ############################################## -->
+<!-- 	##############################################    ############################################## -->
+<!-- 	##############################################  이창주  ############################################## -->
+
+		<select id="getAll" resultType="workperformancevo">
+			<![CDATA[
+					select  to_char(tt.production_date, 'YYYY-MM-DD') as production_date
+				        , sum(tt.output_weight) as output_weight
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = tt.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = tt.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = tt.production_date) as machineHand                                                   
+					    from work_history tt
+			            group by tt.production_date;
+
+			 ]]>
+			</select>
+
+
+		<select id="findSelect" parameterType="workperformancevo" resultType="workperformancevo">
+		<![CDATA[ 
+			  select production_date , sum(output_weight) as output_weight
+			  from work_history tt
+			  where production_date >= #{workinstdateStart}::timestamp and production_date < #{workinstdateEnd}::timestamp and factory = #{factory}
+			  group by production_date;
+		      ]]>
+		</select>  
+ 	
+		<select id="getAlldate" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+				and (wh.production_date >= #{workinstdateStart}::timestamp and wh.production_date <= #{workinstdateEnd}::timestamp )
+			group by production_date;
+		]]>
+		</select>
+		
+		
+		<select id="getAllMachine" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+			group by production_date;
+		]]>
+		</select>
+		
+		
+		<select id="getselectdate" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+				and (wh.production_date >= #{workinstdateStart}::timestamp and wh.production_date <= #{workinstdateEnd}::timestamp )
+			group by production_date;
+				
+		]]>
+		</select>
+		
+		<select id="getselectfactory" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+			group by production_date;
+				
+		]]>
+		</select>
+		
+		<select id="getMachine4" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+				and (wh.production_date >= #{workinstdateStart}::timestamp and wh.production_date <= #{workinstdateEnd}::timestamp )
+			group by production_date;
+				
+		]]>
+		</select>
+		
+		<select id="getMachine2" resultType="workperformancevo" > 
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+				and (wh.production_date >= #{workinstdateStart}::timestamp and wh.production_date <= #{workinstdateEnd}::timestamp )
+			group by production_date;
+				  
+		]]>
+		</select>
+		
+		<select id="getHand" resultType="workperformancevo" >
+		<![CDATA[ 
+			select to_char(wh.production_date, 'YYYY-MM-DD') as production_date, sum(wh.output_weight) as output_weight , sum(ih.target_weight) as target_weight
+				, (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '4면 Machine' and t1.production_date = wh.production_date) as machineFour
+				        , (select coalesce(sum(output_weight), 0) 
+				           from work_history t1 
+				           where t1.factory = '2면 Machine' and t1.production_date = wh.production_date) as machineSecond
+				        , (select coalesce(sum(output_weight),0) 
+				           from work_history t1 
+				           where t1.factory = 'Hand Machine' and t1.production_date = wh.production_date) as machineHand
+				from work_history wh, instruction_history ih 
+				where (wh.material_number = ih.material_number and wh.factory = ih.factory)
+				and (wh.production_date >= #{workinstdateStart}::timestamp and wh.production_date <= #{workinstdateEnd}::timestamp )
+			group by production_date;
+		]]>
+		</select>
+
+</mapper>

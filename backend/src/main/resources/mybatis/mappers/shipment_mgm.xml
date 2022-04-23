@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shipmentMgm">
+	
+	<!-- 게시판 전체 조회(검색 포함) -->
+	<select id="findAll" resultType="shipmentvo">
+		<![CDATA[
+				select * from shipment_mgm
+		]]>
+	</select>
+	
+	<!-- 게시판 일자 조회 -->
+	<select id="findMaterialsByStartAndEndDate" parameterType="map" resultType="map">
+		<![CDATA[
+			select substring(to_char(receiving_date, 'YYYY-MM-DD') , 0, 11) as "receivingDate",
+			material_number as "materialNumber", prdt_name as "prdtName" , init_weight as "initWeight",
+			init_thickness as "initThickness", init_width as "initWidth", init_length as "initLength",
+			vendor_name as "vendorName", vendor_manager as "vendorManager" 
+			from shipment_mgm sm 
+			where substring(to_char(receiving_date, 'YYYY-MM-DD') , 0, 11) 
+			between #{startDate} and #{endDate}
+			order by receiving_date asc;		
+		]]>
+	</select>
+	
+	<!-- 재료 단건 등록 (shipment_mgm) -->
+	<insert id="insertMaterialToShipmentMgm" parameterType="shipmentvo">
+		<![CDATA[
+			insert 
+				into shipment_mgm(material_number, receiving_date, prdt_name, init_weight, init_thickness, init_width, init_length, vendor_name, vendor_manager) 
+			values(#{materialNumber}, TO_TIMESTAMP(#{receivingDate}, 'YYYY-MM-DD HH24:MI:SS'), #{prdtName}, #{initWeight}, #{initThickness}, #{initWidth}, 
+			#{initLength}, #{vendorName}, #{vendorManager})
+		]]>
+	</insert>
+	
+	<!-- 재료 단건 등록 (material_mgm) -->
+	<insert id="insertMaterialToMaterialMgm" parameterType="shipmentvo">
+		<![CDATA[
+			insert 
+				into material_mgm(material_number, current_weight, current_thickness, current_width, current_length, status_cd, process_cd)
+			values(#{materialNumber}, #{initWeight}, #{initThickness}, #{initWidth}, #{initLength}, 1, 1)
+		]]>
+	</insert>
+
+	<!-- 체크한 재료 업데이트 (material_mgm) -->	
+	<update id="updateMaterialToShipmentMgm" parameterType="shipmentvo">
+		<![CDATA[
+			update 
+				shipment_mgm 
+			set 
+				receiving_date = TO_TIMESTAMP(#{receivingDate}, 'YYYY-MM-DD HH24:MI:SS'),
+				prdt_name = #{prdtName},
+				init_weight = #{initWeight},
+				init_thickness = #{initThickness},
+				init_width = #{initWidth},
+				init_length = #{initLength},
+				vendor_name = #{vendorName},
+				vendor_manager = #{vendorManager}
+			where 
+				material_number = #{materialNumber};
+		]]>
+	</update>
+	
+	<!-- 체크한 재료 업데이트 (shipment_mgm) -->	
+	<update id="updateMaterialToMaterialMgm" parameterType="shipmentvo">
+		<![CDATA[
+			update 
+				material_mgm 
+			set 
+				current_weight = #{initWeight},
+				current_thickness = #{initThickness},
+				current_width = #{initWidth},
+				current_length = #{initLength}
+			where 
+				material_number = #{materialNumber};
+		]]>
+	</update>
+	
+</mapper>
+

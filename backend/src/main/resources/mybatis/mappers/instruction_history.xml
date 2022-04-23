@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="instructionHistory">
+
+
+	<!-- 입고된 재료 조회(검색) -->
+	<select id="findMaterials" parameterType="string" resultType="shipmentvo">
+	<![CDATA[
+		select mm.material_number, sm.prdt_name, sm.receiving_date,
+		sm.init_weight, sm.init_thickness, sm.init_width, sm.init_length
+		from shipment_mgm as "sm" join material_mgm as "mm"
+		on sm.material_number = mm.material_number
+		where mm.process_cd='1' and mm.status_cd='1' and mm.material_number Ilike '%${keyword}%'
+		order by sm.receiving_date
+	]]>
+	</select>
+	
+	<!-- 최근에 지시한 내역 조회 -->
+	<select id="findRecentInstruction" parameterType="string" resultType="instructionvo">
+	<![CDATA[
+			select ih.factory, ih.work_inst_date, (
+				select sum(target_weight) from instruction_history
+				where factory=#{machine}) as target_weight, 
+				ih.sequence, ih.due_date
+			from instruction_history as "ih" join material_mgm as "mm"
+			on ih.material_number = mm.material_number 
+			where mm.process_cd='2' and mm.status_cd='1' and ih.factory=#{machine}
+			order by ih.work_inst_date desc limit 1;
+	]]>
+	</select>
+	
+	<!-- 작업에 등록할 때 필요한 값들(재료번호, 초기중량, 오늘날짜)-> 단건으로 가져오기 -->
+	<select id="findMaterialData" parameterType="String" resultType="instructionvo">
+	<![CDATA[
+			select to_char(now(),'YYYY-MM-DD HH24:MI:SS') as "work_inst_date",
+			mm.material_number, sm.init_weight
+			from material_mgm as "mm" join shipment_mgm as "sm"
+			on mm.material_number = sm.material_number
+			where mm.process_cd='1' and mm.status_cd='1' and mm.material_number=#{materialNumber};
+	]]>
+	</select>
+	
+		<!-- 작업에 등록할 때 필요한 값들(재료번호, 초기중량, 오늘날짜)-> 전체 가져오기 -->
+	<select id="findTotalMaterialData" resultType="instructionvo">
+	<![CDATA[
+			select to_char(now(),'YYYY-MM-DD HH24:MI:SS') as "work_inst_date",
+			mm.material_number, sm.init_weight
+			from material_mgm as "mm" join shipment_mgm as "sm"
+			on mm.material_number = sm.material_number
+			where mm.process_cd='1' and mm.status_cd='1';
+
+	]]>
+	</select>
+	
+	<!-- 작업에 등록할 때 공장 작업지시순서 가져오기 -->
+	<select id="findFactorialSequence" parameterType="map" resultType="instructionvo">
+	<![CDATA[
+			select (
+					select max(sequence) from instruction_history
+					where factory = #{factory}) as "sequence", material_number 
+			from material_mgm
+			where process_cd='1' and status_cd='1' and material_number=#{materialNumber};
+	]]>
+	</select>
+	
+	<!-- 작업지시 등록 -->
+	<insert id="insertMaterial" parameterType="instructionvo">
+	<![CDATA[
+			insert into instruction_history(material_number,work_inst_date, factory, 
+			due_date, sequence, target_thickness, target_width, 
+			target_length, target_weight) values(#{materialNumber}, TO_TIMESTAMP(#{workInstDate},'YYYY/MM/DD/HH24:MI:ss'),
+			#{factory}, TO_TIMESTAMP(#{dueDate},'YYYY/MM/DD/HH24:MI:ss'), #{sequence},
+			#{targetThickness}, #{targetWidth}, #{targetLength}, #{targetWeight});
+	]]>
+	</insert>
+	
+		<!-- 작업지시 등록시 재료 진도코드, 상태코드 업데이트 -->
+	<update id="updateMaterialCode" parameterType="String">
+	<![CDATA[
+			update material_mgm set process_cd='2' where material_number=#{materialNumber}
+	]]>
+	</update>
+	
+<!-- 	깃 충돌을 방지하기 위해 지정한 영역입니다. 이 경계선을 절대로 절대로 넘지 마세요 -->
+<!-- 	##############################################  하진수  ############################################## -->
+<!-- 	##############################################    ############################################## -->
+<!-- 	##############################################  이창주  ############################################## -->
+	
+	<select id="findAll" resultType="instructionvo">
+	<![CDATA[ select * from instruction_history
+			  ORDER BY work_inst_date;
+	 ]]>
+	</select>
+	
+	<select id="findSelect" parameterType="instructionvo" resultType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight 
+			  from instruction_history 
+		      where work_inst_date >= #{workinstdateStart}::timestamp and work_inst_date <= #{workinstdateEnd}::timestamp and factory = #{factory}; 
+			  ORDER BY work_inst_date;	
+		      ]]>
+	</select>
+	
+	<select id="getAllMachine" resultType="instructionvo" parameterType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  ORDER BY work_inst_date;	
+	]]>
+	</select>
+	
+	<select id="getAlldate" resultType="instructionvo" parameterType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+		   	  where work_inst_date >= #{workinstdateStart}::timestamp and work_inst_date <= #{workinstdateEnd}::timestamp
+			  ORDER BY work_inst_date;	
+	]]>
+	</select>
+	
+	<select id="getselectdate" resultType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  where work_inst_date >= #{workinstdateStart}::timestamp and work_inst_date <= #{workinstdateEnd}::timestamp and factory = #{factory}
+			  ORDER BY work_inst_date;	
+	]]>
+	</select>
+	
+	<select id="getselectfactory" resultType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  where factory = #{factory}
+			  ORDER BY work_inst_date;	
+	]]>
+	</select>
+	
+	
+	<!--  
+	<select id="getMachine4" resultType="instructionvo">
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  where factory = #{factory}
+			  ORDER BY work_inst_date;	
+	]]>
+	</select>
+	
+	<select id="getMachine2" resultType="instructionvo" > 
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  where factory = #{factory}
+			  ORDER BY work_inst_date;	
+			  
+	]]>
+	</select>
+	
+	<select id="getHand" resultType="instructionvo" >
+	<![CDATA[ select  material_number, work_inst_date, factory, due_date, target_weight from instruction_history 
+			  where factory = #{factory}
+			  ORDER BY work_inst_date;	
+			  
+	]]>
+	</select>
+		
+	-->
+	
+	
+</mapper>

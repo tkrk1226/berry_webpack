@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	
+   <settings>
+    <!-- 카멜케이스 규칙으로 변환 -->
+      <setting name="mapUnderscoreToCamelCase" value="true"/>
+   </settings> 
+
+	<typeAliases>		
+		<typeAlias type="com.poscoict.mesproject.vo.WorkPerformanceVo" alias="workperformancevo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.UserInfoVo" alias="userinfovo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.InstructionVo" alias="instructionvo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.MaterialVo" alias="materialvo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.QualityVo" alias="qualityvo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.ShipmentVo" alias="shipmentvo"/>
+		<typeAlias type="com.poscoict.mesproject.vo.ExportVo" alias="exportvo"/>
+   	</typeAliases>	
+   	
+	<mappers>
+		<mapper resource="mybatis/mappers/instruction_history.xml"></mapper>
+		<mapper resource="mybatis/mappers/material_mgm.xml"></mapper>
+		<mapper resource="mybatis/mappers/quality_std.xml"></mapper>
+		<mapper resource="mybatis/mappers/shipment_mgm.xml"></mapper>
+		<mapper resource="mybatis/mappers/user_info.xml"></mapper>
+		<mapper resource="mybatis/mappers/work_history.xml"></mapper>
+		<mapper resource="mybatis/mappers/export.xml"></mapper>
+	</mappers>
+
+</configuration>
